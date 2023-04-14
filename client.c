@@ -120,17 +120,28 @@ int main(int argc, char *argv[])
 			if (fp == NULL) {
 				printf("Error: Could not open file for writing.\n");
 			} else {
+
+				//read file size
+				long filesize;
+				read(sock, &filesize, sizeof(filesize));
+
+				// write(sock, &filesize, sizeof(filesize));
+
+				printf("Filesize: %ld", filesize);
+				fflush(stdout);
+
 				char buffer[1024];
 				int bytes_read;
-				while ((bytes_read = read(sock, buffer, sizeof(buffer))) > 0) {
+				while ((filesize>0)&&((bytes_read = read(sock, buffer, sizeof(buffer))) > 0)) {
 					// fwrite(buffer, 1, bytes_read, fp);
-					 if (fwrite(buffer, 1, bytes_read, fp) != bytes_read)
+					if (fwrite(buffer, 1, bytes_read, fp) != bytes_read)
 					{
 						printf("Error: could not write to file\n");
 						fclose(fp);
 						return 1;
 					}
 					printf("Bytes Received: %d\n", bytes_read);
+					filesize-=bytes_read;
 				}
 				if (bytes_read < 0) {
 					printf("Error: Failed to receive file.\n");

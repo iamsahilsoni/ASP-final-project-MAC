@@ -30,6 +30,22 @@
 
 char files[MAX_BUFFER_SIZE];
 
+long int getFileSize(const char *filename)
+{
+    FILE *fp = fopen(filename, "rb"); // open the file in binary mode
+    if (fp == NULL)
+    {
+        perror("Error opening file");
+        return -1; // return -1 to indicate error
+    }
+
+    fseek(fp, 0, SEEK_END); // move the file pointer to the end of the file
+    long int size = ftell(fp); // get the current position of the file pointer, which is the file size in bytes
+    fclose(fp);
+
+    return size;
+}
+
 /*----------------------------FINDFILE----------------------------*/
 
 void findfile(int client_sockfd, char **arguments)
@@ -178,11 +194,11 @@ void sgetfiles(int client_sockfd, char **arguments)
         int response_type = 2;
         write(client_sockfd, &response_type, sizeof(response_type));
 
-        while ((nbytes = read(fd[0], buf, MAX_RESPONSE_SIZE)) > 0)
-        {
-            write(client_sockfd, buf, nbytes);
-        }
-        close(fd[0]);
+        wait(NULL);
+        fflush(stdout);
+        long int filesize = getFileSize("temp.tar.gz");
+        // printf("the tar file size is: %ld\n",filesize);
+        write(client_sockfd, &filesize, sizeof(filesize));
 
         // Delete the temporary file
         unlink(tmp_file);
@@ -194,9 +210,15 @@ void sgetfiles(int client_sockfd, char **arguments)
             perror("Error opening tar file");
             return;
         }
-        while ((nbytes = read(tar_fd, buf, MAX_RESPONSE_SIZE)) > 0)
-        {
-            write(client_sockfd, buf, nbytes);
+        ssize_t bytes_read, bytes_sent;
+        off_t bytes_remaining = filesize;
+        while (bytes_remaining > 0 && (bytes_read = read(tar_fd, buf, sizeof(buf))) > 0) {
+            bytes_sent = send(client_sockfd, buf, bytes_read, 0);
+            if (bytes_sent < 0) {
+                perror("Error sending file data");
+                break;
+            }
+            bytes_remaining -= bytes_sent;
         }
         close(tar_fd);
 
@@ -324,11 +346,11 @@ void dgetfiles(int client_sockfd, char **arguments)
         int response_type = 2;
         write(client_sockfd, &response_type, sizeof(response_type));
 
-        while ((nbytes = read(fd[0], buf, MAX_RESPONSE_SIZE)) > 0)
-        {
-            write(client_sockfd, buf, nbytes);
-        }
-        close(fd[0]);
+        wait(NULL);
+        fflush(stdout);
+        long int filesize = getFileSize("temp.tar.gz");
+        // printf("the tar file size is: %ld\n",filesize);
+        write(client_sockfd, &filesize, sizeof(filesize));
 
         // Delete the temporary file
         unlink(tmp_file);
@@ -340,9 +362,15 @@ void dgetfiles(int client_sockfd, char **arguments)
             perror("Error opening tar file");
             return;
         }
-        while ((nbytes = read(tar_fd, buf, MAX_RESPONSE_SIZE)) > 0)
-        {
-            write(client_sockfd, buf, nbytes);
+        ssize_t bytes_read, bytes_sent;
+        off_t bytes_remaining = filesize;
+        while (bytes_remaining > 0 && (bytes_read = read(tar_fd, buf, sizeof(buf))) > 0) {
+            bytes_sent = send(client_sockfd, buf, bytes_read, 0);
+            if (bytes_sent < 0) {
+                perror("Error sending file data");
+                break;
+            }
+            bytes_remaining -= bytes_sent;
         }
         close(tar_fd);
 
@@ -450,11 +478,11 @@ void getfiles(int client_sockfd, char **arguments, int argLen)
         int response_type = 2;
         write(client_sockfd, &response_type, sizeof(response_type));
 
-        while ((nbytes = read(fd[0], buf, MAX_RESPONSE_SIZE)) > 0)
-        {
-            write(client_sockfd, buf, nbytes);
-        }
-        close(fd[0]);
+        wait(NULL);
+        fflush(stdout);
+        long int filesize = getFileSize("temp.tar.gz");
+        // printf("the tar file size is: %ld\n",filesize);
+        write(client_sockfd, &filesize, sizeof(filesize));
 
         // Delete the temporary file
         unlink(tmp_file);
@@ -466,9 +494,15 @@ void getfiles(int client_sockfd, char **arguments, int argLen)
             perror("Error opening tar file");
             return;
         }
-        while ((nbytes = read(tar_fd, buf, MAX_RESPONSE_SIZE)) > 0)
-        {
-            write(client_sockfd, buf, nbytes);
+        ssize_t bytes_read, bytes_sent;
+        off_t bytes_remaining = filesize;
+        while (bytes_remaining > 0 && (bytes_read = read(tar_fd, buf, sizeof(buf))) > 0) {
+            bytes_sent = send(client_sockfd, buf, bytes_read, 0);
+            if (bytes_sent < 0) {
+                perror("Error sending file data");
+                break;
+            }
+            bytes_remaining -= bytes_sent;
         }
         close(tar_fd);
 
@@ -578,15 +612,15 @@ void gettargz(int client_sockfd, char **arguments, int argLen)
         // Send file response
         int response_type = 2;
         write(client_sockfd, &response_type, sizeof(response_type));
-
-        while ((nbytes = read(fd[0], buf, MAX_RESPONSE_SIZE)) > 0)
-        {
-            write(client_sockfd, buf, nbytes);
-        }
-        close(fd[0]);
+        
+        wait(NULL);
+        fflush(stdout);
+        long int filesize = getFileSize("temp.tar.gz");
+        // printf("the tar file size is: %ld\n",filesize);
+        write(client_sockfd, &filesize, sizeof(filesize));
 
         // Delete the temporary file
-        // unlink(tmp_file);
+        unlink(tmp_file);
 
         // Send the tar file to the client
         int tar_fd = open(filename, O_RDONLY);
@@ -595,14 +629,21 @@ void gettargz(int client_sockfd, char **arguments, int argLen)
             perror("Error opening tar file");
             return;
         }
-        while ((nbytes = read(tar_fd, buf, MAX_RESPONSE_SIZE)) > 0)
-        {
-            write(client_sockfd, buf, nbytes);
+
+        ssize_t bytes_read, bytes_sent;
+        off_t bytes_remaining = filesize;
+        while (bytes_remaining > 0 && (bytes_read = read(tar_fd, buf, sizeof(buf))) > 0) {
+            bytes_sent = send(client_sockfd, buf, bytes_read, 0);
+            if (bytes_sent < 0) {
+                perror("Error sending file data");
+                break;
+            }
+            bytes_remaining -= bytes_sent;
         }
         close(tar_fd);
 
         // Delete the tar file
-        // unlink(filename);
+        unlink(filename);
     }
 }
 
