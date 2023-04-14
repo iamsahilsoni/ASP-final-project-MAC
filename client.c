@@ -9,10 +9,14 @@
 #include <sys/types.h>
 #include <sys/signal.h>
 #include <sys/wait.h>
-#define PORT 32000
+
+#define SERVER_PORT 32000
+#define MIRROR_PORT 32001
 #define MAX_ARGUMENTS 10
 #define RESPONSE_TEXT 1
 #define RESPONSE_FILE 2
+
+int sock = 0;
 
 int validate_input(char *buffer)
 {
@@ -50,44 +54,68 @@ int validate_input(char *buffer)
 	return 1;
 }
 
+int connectToServerOrMirror(char *ip, int port)
+{
+	printf("Trying to connect:::\n");
+	struct sockaddr_in serv_addr;
+	if ((sock = socket(AF_INET, SOCK_STREAM, 0)) < 0)
+	{
+		printf("Socket creation error\n");
+		return 0;
+	}
+
+	serv_addr.sin_family = AF_INET;
+	serv_addr.sin_port = htons(port);
+
+	if (inet_pton(AF_INET, ip, &serv_addr.sin_addr) <= 0)
+	{
+		printf("Invalid address or Address not supported\n");
+		return 0;
+	}
+
+	if (connect(sock, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0)
+	{
+		return 0;
+	}
+	int isAccepted;
+	read(sock, &isAccepted, sizeof(isAccepted));
+	return isAccepted;
+}
+
 int main(int argc, char *argv[])
 {
-	int sock = 0, valread;
-	struct sockaddr_in serv_addr;
+	int valread;
+
 	char buffer[1024] = {0};
 	char response_text[1024];
 	char valbuf[1024];
 	char server_ip[16];
+	char mirror_ip[16];
 
-	if (argc < 2)
+	if (argc < 3)
 	{
-		printf("Usage: %s <server_ip>\n", argv[0]);
+		printf("Usage: %s <server_ip> <mirror_ip>\n", argv[0]);
 		return 1;
 	}
 	strcpy(server_ip, argv[1]);
+	strcpy(mirror_ip, argv[2]);
+	printf("Server IP is: %s\n", server_ip);
+	printf("Mirror IP is: %s\n", mirror_ip);
 
-	if ((sock = socket(AF_INET, SOCK_STREAM, 0)) < 0)
+	if (connectToServerOrMirror(server_ip, SERVER_PORT) > 0)
 	{
-		printf("Socket creation error\n");
-		return 1;
+		printf("Connected to the Server! \n");
 	}
-
-	serv_addr.sin_family = AF_INET;
-	serv_addr.sin_port = htons(PORT);
-
-	if (inet_pton(AF_INET, server_ip, &serv_addr.sin_addr) <= 0)
+	else if (connectToServerOrMirror(mirror_ip, MIRROR_PORT) > 0)
 	{
-		printf("Invalid address or Address not supported\n");
-		return 1;
+		printf("Connected to the Mirror! \n");
 	}
-
-	if (connect(sock, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0)
+	else
 	{
 		printf("Connection failed\n");
 		return 1;
 	}
 
-	printf("Connected to the server! \n");
 	read(sock, buffer, 1024);
 	printf("Message from server: '%s' \n", buffer);
 
@@ -117,11 +145,14 @@ int main(int argc, char *argv[])
 		else
 		{
 			FILE *fp = fopen("received.tar.gz", "wb");
-			if (fp == NULL) {
+			if (fp == NULL)
+			{
 				printf("Error: Could not open file for writing.\n");
-			} else {
+			}
+			else
+			{
 
-				//read file size
+				// read file size
 				long filesize;
 				read(sock, &filesize, sizeof(filesize));
 
@@ -132,7 +163,8 @@ int main(int argc, char *argv[])
 
 				char buffer[1024];
 				int bytes_read;
-				while ((filesize>0)&&((bytes_read = read(sock, buffer, sizeof(buffer))) > 0)) {
+				while ((filesize > 0) && ((bytes_read = read(sock, buffer, sizeof(buffer))) > 0))
+				{
 					// fwrite(buffer, 1, bytes_read, fp);
 					if (fwrite(buffer, 1, bytes_read, fp) != bytes_read)
 					{
@@ -141,9 +173,10 @@ int main(int argc, char *argv[])
 						return 1;
 					}
 					printf("Bytes Received: %d\n", bytes_read);
-					filesize-=bytes_read;
+					filesize -= bytes_read;
 				}
-				if (bytes_read < 0) {
+				if (bytes_read < 0)
+				{
 					printf("Error: Failed to receive file.\n");
 				}
 				fclose(fp);

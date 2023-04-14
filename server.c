@@ -28,7 +28,7 @@
 #define RESPONSE_TEXT 1
 #define RESPONSE_FILE 2
 
-char files[MAX_BUFFER_SIZE];
+int client_count = 0;
 
 long int getFileSize(const char *filename)
 {
@@ -39,7 +39,7 @@ long int getFileSize(const char *filename)
         return -1; // return -1 to indicate error
     }
 
-    fseek(fp, 0, SEEK_END); // move the file pointer to the end of the file
+    fseek(fp, 0, SEEK_END);    // move the file pointer to the end of the file
     long int size = ftell(fp); // get the current position of the file pointer, which is the file size in bytes
     fclose(fp);
 
@@ -72,7 +72,7 @@ void findfile(int client_sockfd, char **arguments)
             line[strcspn(line, "\n")] = '\0'; // Remove the newline character from the end of the line
             struct stat sb;
             if (stat(line, &sb) == 0)
-            {                                                                                                         // Get the file information using stat()
+            {                                                                                                                                      // Get the file information using stat()
                 sprintf(response, "Name of file is: %s,\nSize is: %lld bytes,\nCreated on: %s", line, (long long)sb.st_size, ctime(&sb.st_ctime)); // Print the file information
             }
             else
@@ -212,9 +212,11 @@ void sgetfiles(int client_sockfd, char **arguments)
         }
         ssize_t bytes_read, bytes_sent;
         off_t bytes_remaining = filesize;
-        while (bytes_remaining > 0 && (bytes_read = read(tar_fd, buf, sizeof(buf))) > 0) {
+        while (bytes_remaining > 0 && (bytes_read = read(tar_fd, buf, sizeof(buf))) > 0)
+        {
             bytes_sent = send(client_sockfd, buf, bytes_read, 0);
-            if (bytes_sent < 0) {
+            if (bytes_sent < 0)
+            {
                 perror("Error sending file data");
                 break;
             }
@@ -364,9 +366,11 @@ void dgetfiles(int client_sockfd, char **arguments)
         }
         ssize_t bytes_read, bytes_sent;
         off_t bytes_remaining = filesize;
-        while (bytes_remaining > 0 && (bytes_read = read(tar_fd, buf, sizeof(buf))) > 0) {
+        while (bytes_remaining > 0 && (bytes_read = read(tar_fd, buf, sizeof(buf))) > 0)
+        {
             bytes_sent = send(client_sockfd, buf, bytes_read, 0);
-            if (bytes_sent < 0) {
+            if (bytes_sent < 0)
+            {
                 perror("Error sending file data");
                 break;
             }
@@ -496,9 +500,11 @@ void getfiles(int client_sockfd, char **arguments, int argLen)
         }
         ssize_t bytes_read, bytes_sent;
         off_t bytes_remaining = filesize;
-        while (bytes_remaining > 0 && (bytes_read = read(tar_fd, buf, sizeof(buf))) > 0) {
+        while (bytes_remaining > 0 && (bytes_read = read(tar_fd, buf, sizeof(buf))) > 0)
+        {
             bytes_sent = send(client_sockfd, buf, bytes_read, 0);
-            if (bytes_sent < 0) {
+            if (bytes_sent < 0)
+            {
                 perror("Error sending file data");
                 break;
             }
@@ -612,7 +618,7 @@ void gettargz(int client_sockfd, char **arguments, int argLen)
         // Send file response
         int response_type = 2;
         write(client_sockfd, &response_type, sizeof(response_type));
-        
+
         wait(NULL);
         fflush(stdout);
         long int filesize = getFileSize("temp.tar.gz");
@@ -632,9 +638,11 @@ void gettargz(int client_sockfd, char **arguments, int argLen)
 
         ssize_t bytes_read, bytes_sent;
         off_t bytes_remaining = filesize;
-        while (bytes_remaining > 0 && (bytes_read = read(tar_fd, buf, sizeof(buf))) > 0) {
+        while (bytes_remaining > 0 && (bytes_read = read(tar_fd, buf, sizeof(buf))) > 0)
+        {
             bytes_sent = send(client_sockfd, buf, bytes_read, 0);
-            if (bytes_sent < 0) {
+            if (bytes_sent < 0)
+            {
                 perror("Error sending file data");
                 break;
             }
@@ -777,10 +785,22 @@ int main(int argc, char *argv[])
     while (1)
     {
         csd = accept(sd, (struct sockaddr *)NULL, NULL);
-        printf("Got a client\n");
-        if (!fork()) // Child process
-            processClient(csd);
-        close(csd);
-        waitpid(0, &status, WNOHANG); // waitpid?
+        client_count++;
+        if (client_count < 5)
+        {
+            printf("Got a client\n");
+            int response_type = 1;
+            write(csd, &response_type, sizeof(response_type));
+            if (!fork()) // Child process
+                processClient(csd);
+            close(csd);
+            waitpid(0, &status, WNOHANG); // waitpid?
+        }
+        else
+        {
+            int response_type = 0;
+            write(csd, &response_type, sizeof(response_type));
+            close(csd);
+        }
     }
 } // End main
