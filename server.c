@@ -654,7 +654,6 @@ void processClient(int client_sockfd)
     {
         memset(command, 0, sizeof(command));
         n = read(client_sockfd, command, 255);
-        printf("The command read by server is: '%s'\n", command);
 
         if (n <= 0)
         {

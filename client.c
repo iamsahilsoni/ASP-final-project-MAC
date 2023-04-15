@@ -349,6 +349,7 @@ int main(int argc, char *argv[])
 					printf("Bytes Received: %d\n", bytes_read);
 					filesize -= bytes_read;
 				}
+				printf("Tar File received successfully.\n");
 				if (bytes_read < 0)
 				{
 					printf("Error: Failed to receive file.\n");

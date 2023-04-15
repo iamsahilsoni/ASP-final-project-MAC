@@ -652,6 +652,7 @@ void processClient(int client_sockfd)
 
     while (1)
     {
+        memset(command, 0, sizeof(command));
         n = read(client_sockfd, command, 255);
 
         if (n <= 0)
