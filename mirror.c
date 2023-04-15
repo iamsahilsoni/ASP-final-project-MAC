@@ -1,3 +1,13 @@
+// Sahil Soni(110093229), Aashi Thakkar(110093562)
+// University of Windsor
+// Advanced System Programming - Server Client Project
+// April 15th 2023
+
+// Mirror-Side code
+// Usage :- 
+// 1. gcc -o mirror mirror.c
+// 2. ./mirror
+
 #include <time.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -752,6 +762,8 @@ int main(int argc, char *argv[])
 
     bind(sd, (struct sockaddr *)&servAdd, sizeof(servAdd));
     listen(sd, 5);
+
+    printf("Mirror server started, waiting for client... !\n");
 
     while (1)
     {

@@ -1,3 +1,13 @@
+// Sahil Soni(110093229), Aashi Thakkar(110093562)
+// University of Windsor
+// Advanced System Programming - Server Client Project
+// April 15th 2023
+
+// Client-Side code
+// Usage :- 
+// 1. gcc -o client client.c
+// 2. ./client <server-ip> <mirror-ip>
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
