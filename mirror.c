@@ -19,7 +19,7 @@
 #include <netinet/ip.h>
 #include <fnmatch.h>
 
-#define PORT 32000
+#define PORT 8081
 #define MAX_RESPONSE_SIZE 1024
 #define MAX_ARGUMENTS 10
 #define CHUNK_SIZE 16384
@@ -60,7 +60,7 @@ void findfile(int client_sockfd, char **arguments)
     char *home_dir = getenv("HOME");                                          // Get the home directory path
     char *command = (char *)malloc(strlen(home_dir) + strlen(filename) + 27); // Allocate memory for the command string
     sprintf(command, "find %s -name '%s' -print -quit", home_dir, filename);  // Construct the find command
-    FILE *pipe = popen(command, "r"); // Open a pipe to the command
+    FILE *pipe = popen(command, "r");                                         // Open a pipe to the command
     if (pipe != NULL)
     {
         char line[256];
@@ -687,8 +687,9 @@ void processClient(int client_sockfd)
         char *cmd = arguments[0]; // Extract first token as the command
 
         printf("\nExecuting the following command: \n");
-        for(int i=0;i<num_arguments;i++){
-            printf("%s ",arguments[i]);
+        for (int i = 0; i < num_arguments; i++)
+        {
+            printf("%s ", arguments[i]);
         }
         printf("\n\n");
 

@@ -19,7 +19,7 @@
 #include <netinet/ip.h>
 #include <fnmatch.h>
 
-#define PORT 32000
+#define PORT 8080
 #define MAX_RESPONSE_SIZE 1024
 #define MAX_ARGUMENTS 10
 #define CHUNK_SIZE 16384
@@ -60,7 +60,7 @@ void findfile(int client_sockfd, char **arguments)
     char *home_dir = getenv("HOME");                                          // Get the home directory path
     char *command = (char *)malloc(strlen(home_dir) + strlen(filename) + 27); // Allocate memory for the command string
     sprintf(command, "find %s -name '%s' -print -quit", home_dir, filename);  // Construct the find command
-    FILE *pipe = popen(command, "r"); // Open a pipe to the command
+    FILE *pipe = popen(command, "r");                                         // Open a pipe to the command
     if (pipe != NULL)
     {
         char line[256];
@@ -662,7 +662,7 @@ void processClient(int client_sockfd)
     {
         memset(command, 0, sizeof(command));
         n = read(client_sockfd, command, 255);
-        printf("The command read by server is: '%s'\n",command);
+        printf("The command read by server is: '%s'\n", command);
 
         if (n <= 0)
         {
@@ -689,8 +689,9 @@ void processClient(int client_sockfd)
         char *cmd = arguments[0]; // Extract first token as the command
 
         printf("\nExecuting the following command: \n");
-        for(int i=0;i<num_arguments;i++){
-            printf("%s ",arguments[i]);
+        for (int i = 0; i < num_arguments; i++)
+        {
+            printf("%s ", arguments[i]);
         }
         printf("\n\n");
 
@@ -767,17 +768,25 @@ int main(int argc, char *argv[])
     {
         csd = accept(sd, (struct sockaddr *)NULL, NULL);
         client_count++;
-        printf("Client Count: %d\n",client_count);
-        int willAccept=0;
-        if (client_count <= 4) {
-            willAccept=1;
-        } else if (client_count >= 5 && client_count <= 8) {
-            willAccept=0;
-        } else {
-            if ((client_count - 9) % 2 == 0) {
-                willAccept=1;
-            } else {
-                willAccept=0;
+        printf("Client Count: %d\n", client_count);
+        int willAccept = 0;
+        if (client_count <= 4)
+        {
+            willAccept = 1;
+        }
+        else if (client_count >= 5 && client_count <= 8)
+        {
+            willAccept = 0;
+        }
+        else
+        {
+            if ((client_count - 9) % 2 == 0)
+            {
+                willAccept = 1;
+            }
+            else
+            {
+                willAccept = 0;
             }
         }
         if (willAccept)
