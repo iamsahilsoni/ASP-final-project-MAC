@@ -20,7 +20,6 @@ int sock = 0;
 
 int validate_input(char *buffer)
 {
-
 	// tokenize input
 	char *arguments[MAX_ARGUMENTS];
 	int num_arguments = 0;
@@ -56,7 +55,7 @@ int validate_input(char *buffer)
 
 int connectToServerOrMirror(char *ip, int port)
 {
-	printf("Trying to connect:::\n");
+	printf("Trying to connect to %s with port no. %d\n",ip,port);
 	struct sockaddr_in serv_addr;
 	if ((sock = socket(AF_INET, SOCK_STREAM, 0)) < 0)
 	{
@@ -82,6 +81,19 @@ int connectToServerOrMirror(char *ip, int port)
 	return isAccepted;
 }
 
+void remove_linebreak(char **tokens, int num_tokens)
+{
+    for (int i = 0; i < num_tokens; i++)
+    {
+        char *token = tokens[i];
+        int length = strcspn(token, "\n");
+        char *new_token = (char *)malloc(length + 1);
+        strncpy(new_token, token, length);
+        new_token[length] = '\0';
+        tokens[i] = new_token;
+    }
+}
+
 int main(int argc, char *argv[])
 {
 	int valread;
@@ -99,8 +111,6 @@ int main(int argc, char *argv[])
 	}
 	strcpy(server_ip, argv[1]);
 	strcpy(mirror_ip, argv[2]);
-	printf("Server IP is: %s\n", server_ip);
-	printf("Mirror IP is: %s\n", mirror_ip);
 
 	if (connectToServerOrMirror(server_ip, SERVER_PORT) > 0)
 	{
@@ -121,12 +131,48 @@ int main(int argc, char *argv[])
 
 	while (1)
 	{
-		printf("Enter a command: \n");
+		printf("\nEnter a command:\n");
 
+		memset(buffer, 0, sizeof(buffer));
 		fgets(buffer, 1024, stdin);
-		// buffer[strcspn(buffer, "\n")] = 0; // remove newline character
 
 		strcpy(valbuf, buffer);
+		// printf("buff is %s",buffer);
+		
+		// char *arguments[MAX_ARGUMENTS];
+		// memset(arguments, 0, sizeof(arguments));
+        // int num_arguments = 0;
+
+        // // Parse the command received from client
+        // char *token = strtok(valbuf, " "); // Tokenize command using space as delimiter
+
+        // while (token != NULL)
+        // {
+        //     arguments[num_arguments++] = token; // Store the token in the array
+		// 	printf("token is '%s'\n",token);
+        //     token = strtok(NULL, " ");          // Get the next token
+        // }
+        // arguments[num_arguments] = NULL; // Set the last element of the array to NULL
+
+        // // Remove line breaks from tokens
+        // remove_linebreak(arguments, num_arguments);
+
+		// char* result = malloc(MAX_ARGUMENTS * 100);
+		// memset(result, 0, sizeof(result));
+		// // initialize the result string to an empty string
+		// result[0] = '\0';
+		
+		// printf("%d\n",num_arguments);
+		// // concatenate each argument to the result string
+		// for (int i = 0; i < num_arguments ; i++) {
+		// 	strcat(result, arguments[i]);
+		// 	if (i!=num_arguments-1) {
+		// 		strcat(result, " ");
+		// 	}
+		// }
+
+		// printf("the filtered command is '%s' with size %lu\n",result,strlen(result));
+
 		if (!validate_input(valbuf))
 			continue;
 
@@ -140,7 +186,7 @@ int main(int argc, char *argv[])
 		{
 			memset(response_text, 0, sizeof(response_text)); // Clear the response text buffer
 			read(sock, response_text, sizeof(response_text));
-			printf("Received text response:\n%s\n", response_text);
+			printf("\nReceived text response:\n%s\n", response_text);
 		}
 		else
 		{
@@ -151,21 +197,16 @@ int main(int argc, char *argv[])
 			}
 			else
 			{
-
 				// read file size
 				long filesize;
 				read(sock, &filesize, sizeof(filesize));
 
-				// write(sock, &filesize, sizeof(filesize));
-
-				printf("Filesize: %ld", filesize);
 				fflush(stdout);
 
 				char buffer[1024];
 				int bytes_read;
 				while ((filesize > 0) && ((bytes_read = read(sock, buffer, sizeof(buffer))) > 0))
 				{
-					// fwrite(buffer, 1, bytes_read, fp);
 					if (fwrite(buffer, 1, bytes_read, fp) != bytes_read)
 					{
 						printf("Error: could not write to file\n");
@@ -181,19 +222,6 @@ int main(int argc, char *argv[])
 				}
 				fclose(fp);
 			}
-			// FILE *fp = fopen("received.tar", "wb");
-			// if (fp == NULL)
-			// {
-			// 	// handle error
-			// }
-			// char buffer[1024];
-			// int bytes_read;
-			// while ((bytes_read = read(sock, buffer, sizeof(buffer))) > 0)
-			// {
-			// 	fwrite(buffer, 1, bytes_read, fp);
-			// 	printf("Bytes Received: %d\n", bytes_read);
-			// }
-			// fclose(fp);
 		}
 	}
 	close(sock);

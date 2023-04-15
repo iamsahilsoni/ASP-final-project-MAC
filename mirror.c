@@ -19,7 +19,7 @@
 #include <netinet/ip.h>
 #include <fnmatch.h>
 
-#define PORT 32001
+#define PORT 32000
 #define MAX_RESPONSE_SIZE 1024
 #define MAX_ARGUMENTS 10
 #define CHUNK_SIZE 16384
@@ -27,6 +27,10 @@
 #define MAX_EXTENSION_COUNT 6
 #define RESPONSE_TEXT 1
 #define RESPONSE_FILE 2
+
+int client_count = 0;
+
+/*-------------------------COMMON----------------------------------*/
 
 long int getFileSize(const char *filename)
 {
@@ -50,17 +54,11 @@ void findfile(int client_sockfd, char **arguments)
 {
 
     char *filename = arguments[1];
-
-    // implement todo
-    printf("inside findfile\n");
     char response[1024];
-
-    printf("filename: %s\n", filename);
 
     char *home_dir = getenv("HOME");                                          // Get the home directory path
     char *command = (char *)malloc(strlen(home_dir) + strlen(filename) + 27); // Allocate memory for the command string
     sprintf(command, "find %s -name '%s' -print -quit", home_dir, filename);  // Construct the find command
-    printf("executing command: %s\n", command);
     FILE *pipe = popen(command, "r"); // Open a pipe to the command
     if (pipe != NULL)
     {
@@ -139,7 +137,6 @@ void traverse_directory(char *dirpath, size_t size1, size_t size2, int tmp_fd)
 
 void sgetfiles(int client_sockfd, char **arguments)
 {
-    // char *dirname = ".";
     char *dirname = getenv("HOME");
     char *filename = "temp.tar.gz";
     size_t size1 = atoi(arguments[1]);
@@ -267,19 +264,11 @@ void traverse_directory_for_date(char *dirpath, time_t time1, time_t time2, int 
 
 void dgetfiles(int client_sockfd, char **arguments)
 {
-    // char *dirname = ".";
     char *dirname = getenv("HOME");
     char *filename = "temp.tar.gz";
     char *date1_str = arguments[1];
     char *date2_str = arguments[2];
-    // printf("Date 1: %s\n", date1_str);
-    // printf("Date 2: %s\n", date2_str);
-    // // Parse the date strings into time_t values
-    // struct tm date1_tm, date2_tm;
-    // strptime(date1_str, "%Y-%m-%d", &date1_tm);
-    // strptime(date2_str, "%Y-%m-%d", &date2_tm);
-    // time_t date1 = mktime(&date1_tm);
-    // time_t date2 = mktime(&date2_tm);
+
     struct tm date1_tm, date2_tm;
     sscanf(date1_str, "%d-%d-%d", &date1_tm.tm_year, &date1_tm.tm_mon, &date1_tm.tm_mday);
     sscanf(date2_str, "%d-%d-%d", &date2_tm.tm_year, &date2_tm.tm_mon, &date2_tm.tm_mday);
@@ -295,9 +284,6 @@ void dgetfiles(int client_sockfd, char **arguments)
     date2_tm.tm_sec = 59;
     time_t date1 = mktime(&date1_tm);
     time_t date2 = mktime(&date2_tm);
-
-    // printf("Date 1: %ld\n", date1);
-    // printf("Date 2: %ld\n", date2);
 
     char buf[MAX_RESPONSE_SIZE];
     int fd[2], nbytes;
@@ -349,7 +335,6 @@ void dgetfiles(int client_sockfd, char **arguments)
         wait(NULL);
         fflush(stdout);
         long int filesize = getFileSize("temp.tar.gz");
-        // printf("the tar file size is: %ld\n",filesize);
         write(client_sockfd, &filesize, sizeof(filesize));
 
         // Delete the temporary file
@@ -418,7 +403,6 @@ void traverse_directory_for_getfiles(char *dirpath, char **filenames, int num_fi
 
 void getfiles(int client_sockfd, char **arguments, int argLen)
 {
-    // char *dirname = ".";
     char *dirname = getenv("HOME");
     char *filename = "temp.tar.gz";
 
@@ -483,7 +467,6 @@ void getfiles(int client_sockfd, char **arguments, int argLen)
         wait(NULL);
         fflush(stdout);
         long int filesize = getFileSize("temp.tar.gz");
-        // printf("the tar file size is: %ld\n",filesize);
         write(client_sockfd, &filesize, sizeof(filesize));
 
         // Delete the temporary file
@@ -620,7 +603,6 @@ void gettargz(int client_sockfd, char **arguments, int argLen)
         wait(NULL);
         fflush(stdout);
         long int filesize = getFileSize("temp.tar.gz");
-        // printf("the tar file size is: %ld\n",filesize);
         write(client_sockfd, &filesize, sizeof(filesize));
 
         // Delete the temporary file
@@ -675,80 +657,80 @@ void processClient(int client_sockfd)
     int n, pid;
     write(client_sockfd, "Send commands", 14);
 
-    if (pid = fork()) /*reading csd messages */
+    while (1)
     {
-        while (1)
+        n = read(client_sockfd, command, 255);
+
+        if (n <= 0)
         {
-            n = read(client_sockfd, command, 255);
-
-            if (n <= 0)
-            { // Check if no data received (client closed connection)
-                printf("Client disconnected.\n");
-                break; // Exit loop and terminate processclient() function
-            }
-
-            printf("\ngot input: %s\n", command);
-
-            char *arguments[MAX_ARGUMENTS];
-            int num_arguments = 0;
-
-            // Parse the command received from client
-            char *token = strtok(command, " "); // Tokenize command using space as delimiter
-
-            while (token != NULL)
-            {
-                arguments[num_arguments++] = token; // Store the token in the array
-                token = strtok(NULL, " ");          // Get the next token
-            }
-            arguments[num_arguments] = NULL; // Set the last element of the array to NULL
-
-            // Remove line breaks from tokens
-            remove_linebreak(arguments, num_arguments);
-
-            char *cmd = arguments[0]; // Extract first token as the command
-
-            printf("got command: %s\n", cmd);
-
-            // Process the command and generate response
-            if (strcmp(cmd, "findfile") == 0)
-            {
-                findfile(client_sockfd, arguments); // Correct
-            }
-            else if (strcmp(cmd, "sgetfiles") == 0)
-            {
-                sgetfiles(client_sockfd, arguments); // Correct
-            }
-            else if (strcmp(cmd, "dgetfiles") == 0)
-            {
-                dgetfiles(client_sockfd, arguments); // Correct
-            }
-            else if (strcmp(cmd, "getfiles") == 0)
-            {
-                getfiles(client_sockfd, arguments, num_arguments); // Correct
-            }
-            else if (strcmp(cmd, "gettargz") == 0)
-            {
-                gettargz(client_sockfd, arguments, num_arguments); // Correct
-            }
-            else if (strcmp(cmd, "quit") == 0)
-            {
-                printf("Client requested to quit.\n");
-                snprintf(response, MAX_RESPONSE_SIZE, "Server has closed the connection"); // Generate response for invalid command
-                write(client_sockfd, response, strlen(response));
-                snprintf(response, MAX_RESPONSE_SIZE, "quit"); // Generate response for invalid command
-                write(client_sockfd, response, strlen(response));
-                break; // Exit loop and terminate processclient() function
-            }
-            else
-            {
-                snprintf(response, MAX_RESPONSE_SIZE, "Invalid command\n"); // Generate response for invalid command
-                write(client_sockfd, response, strlen(response));
-                continue; // Continue to next iteration of loop to wait for new command
-            }
-            // Send response to client
-            // send(client_sockfd, response, strlen(response), 0);
+            printf("Client disconnected.\n");
+            break; // Exit loop and terminate processclient() function
         }
+
+        char *arguments[MAX_ARGUMENTS];
+        int num_arguments = 0;
+
+        // Parse the command received from client
+        char *token = strtok(command, " "); // Tokenize command using space as delimiter
+
+        while (token != NULL)
+        {
+            arguments[num_arguments++] = token; // Store the token in the array
+            token = strtok(NULL, " ");          // Get the next token
+        }
+        arguments[num_arguments] = NULL; // Set the last element of the array to NULL
+
+        // Remove line breaks from tokens
+        remove_linebreak(arguments, num_arguments);
+
+        char *cmd = arguments[0]; // Extract first token as the command
+
+        printf("\nExecuting the following command: \n");
+        for(int i=0;i<num_arguments;i++){
+            printf("%s ",arguments[i]);
+        }
+        printf("\n\n");
+
+        // Process the command and generate response
+        if (strcmp(cmd, "findfile") == 0)
+        {
+            findfile(client_sockfd, arguments); // Correct
+        }
+        else if (strcmp(cmd, "sgetfiles") == 0)
+        {
+            sgetfiles(client_sockfd, arguments); // Correct
+        }
+        else if (strcmp(cmd, "dgetfiles") == 0)
+        {
+            dgetfiles(client_sockfd, arguments); // Correct
+        }
+        else if (strcmp(cmd, "getfiles") == 0)
+        {
+            getfiles(client_sockfd, arguments, num_arguments); // Correct
+        }
+        else if (strcmp(cmd, "gettargz") == 0)
+        {
+            gettargz(client_sockfd, arguments, num_arguments); // Correct
+        }
+        else if (strcmp(cmd, "quit") == 0)
+        {
+            printf("Client requested to quit.\n");
+            snprintf(response, MAX_RESPONSE_SIZE, "Server has closed the connection"); // Generate response for invalid command
+            write(client_sockfd, response, strlen(response));
+            snprintf(response, MAX_RESPONSE_SIZE, "quit"); // Generate response for invalid command
+            write(client_sockfd, response, strlen(response));
+            break; // Exit loop and terminate processclient() function
+        }
+        else
+        {
+            snprintf(response, MAX_RESPONSE_SIZE, "Invalid command\n"); // Generate response for invalid command
+            write(client_sockfd, response, strlen(response));
+            continue; // Continue to next iteration of loop to wait for new command
+        }
+        // Send response to client
+        // send(client_sockfd, response, strlen(response), 0);
     }
+    exit(0);
 }
 
 /*-------------MAIN----------------------*/
@@ -789,4 +771,4 @@ int main(int argc, char *argv[])
         close(csd);
         waitpid(0, &status, WNOHANG); // waitpid?
     }
-} // End main
+}
