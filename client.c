@@ -23,7 +23,7 @@
 
 int sock = 0;
 
-int unzip_tar(char *filename)
+int unzip_tar()
 {
 	int ret;
 	ret = system("gzip -d received.tar.gz");
@@ -31,16 +31,9 @@ int unzip_tar(char *filename)
 
 	if (ret != 0)
 	{
-		// tar_strerror();
-		fprintf(stderr, "Failed to open tar temp.tar.gz\n");
+		fprintf(stderr, "Failed to open tar received.tar.gz\n");
 		return 1;
 	}
-	printf("unzip Successful!\n");
-
-	// if (system("tar xf ") != 0) {
-	//     printf("Error: Failed to unzip file %s.\n", filename);
-	//     return 1;
-	// }
 	return 0;
 }
 
@@ -110,6 +103,50 @@ int verify_arguments(char arguments[][MAX_COMMAND_LENGTH], int num_arguments)
 		{
 			printf("Invalid arguments: sgetfiles/dgetfiles command must have size/date range arguments and optionally the -u flag\n");
 			return -1;
+		}
+
+		if (strcmp(command, "sgetfiles") == 0)
+		{
+			int range1 = atoi(arguments[1]);
+			int range2 = atoi(arguments[2]);
+			if (range1 < 0 || range2 < 0 || range1 > range2)
+			{
+				printf("Invalid arguments: sgetfiles command must have both size1 & size2 >= 0 and size1 <= size2\n");
+				return -1;
+			}
+		}
+		else
+		{
+			// Extract the dates from the arguments
+			char *date1 = arguments[1];
+			char *date2 = arguments[2];
+
+			// Convert the dates to integers
+			int year1, month1, day1;
+			int year2, month2, day2;
+
+			if (sscanf(date1, "%d-%d-%d", &year1, &month1, &day1) != 3)
+			{
+				fprintf(stderr, "Error: Invalid date format: %s\n", date1);
+				return -1;
+			}
+
+			if (sscanf(date2, "%d-%d-%d", &year2, &month2, &day2) != 3)
+			{
+				fprintf(stderr, "Error: Invalid date format: %s\n", date2);
+				return -1;
+			}
+
+			// Compare the dates
+			if (year1 < year2 || (year1 == year2 && (month1 < month2 || (month1 == month2 && day1 <= day2))))
+			{
+				// do nothing, valid dates
+			}
+			else
+			{
+				printf("%s is greater than %s\n", date1, date2);
+				return -1;
+			}
 		}
 		char *flag = arguments[num_arguments - 1];
 		if (strcmp(flag, "-u") == 0)
@@ -266,7 +303,6 @@ int main(int argc, char *argv[])
 				strcat(result, " ");
 			}
 		}
-		// printf("the filtered command is '%s' with size %lu\n",result,strlen(result));
 
 		// send command to server
 		send(sock, result, strlen(result), 0);
@@ -319,7 +355,7 @@ int main(int argc, char *argv[])
 				}
 				else if (unZip)
 				{
-					if (unzip_tar("received.tar.gz") != 0)
+					if (unzip_tar() != 0)
 					{
 						printf("Error: Failed to unzip a tar file.\n");
 					}

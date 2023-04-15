@@ -53,7 +53,6 @@ long int getFileSize(const char *filename)
 
 void findfile(int client_sockfd, char **arguments)
 {
-
     char *filename = arguments[1];
     char response[1024];
 
@@ -92,8 +91,6 @@ void findfile(int client_sockfd, char **arguments)
     // Send text response
     int response_type = RESPONSE_TEXT;
     write(client_sockfd, &response_type, sizeof(response_type));
-
-    // sleep(1);
 
     write(client_sockfd, response, strlen(response));
 }
@@ -185,7 +182,6 @@ void sgetfiles(int client_sockfd, char **arguments)
     {
         // Parent process
         close(fd[1]);
-
         // Send file response
         int response_type = 2;
         write(client_sockfd, &response_type, sizeof(response_type));
@@ -193,7 +189,6 @@ void sgetfiles(int client_sockfd, char **arguments)
         wait(NULL);
         fflush(stdout);
         long int filesize = getFileSize("temp.tar.gz");
-        // printf("the tar file size is: %ld\n",filesize);
         write(client_sockfd, &filesize, sizeof(filesize));
 
         // Delete the temporary file
@@ -393,7 +388,6 @@ void traverse_directory_for_getfiles(char *dirpath, char **filenames, int num_fi
                 break;
             }
         }
-
         if (ent->d_type == DT_DIR && strcmp(ent->d_name, ".") != 0 && strcmp(ent->d_name, "..") != 0)
         {
             traverse_directory_for_getfiles(path, filenames, num_files, tmp_fd);
@@ -460,7 +454,6 @@ void getfiles(int client_sockfd, char **arguments, int argLen)
     {
         // Parent process
         close(fd[1]);
-
         // Send file response
         int response_type = 2;
         write(client_sockfd, &response_type, sizeof(response_type));
@@ -530,7 +523,6 @@ void traverse_directory_for_gettargz(char *dirpath, char **extensions, int num_e
                 }
             }
         }
-
         if (ent->d_type == DT_DIR && strcmp(ent->d_name, ".") != 0 && strcmp(ent->d_name, "..") != 0)
         {
             traverse_directory_for_gettargz(path, extensions, num_extensions, tmp_fd);
@@ -696,23 +688,23 @@ void processClient(int client_sockfd)
         // Process the command and generate response
         if (strcmp(cmd, "findfile") == 0)
         {
-            findfile(client_sockfd, arguments); // Correct
+            findfile(client_sockfd, arguments); 
         }
         else if (strcmp(cmd, "sgetfiles") == 0)
         {
-            sgetfiles(client_sockfd, arguments); // Correct
+            sgetfiles(client_sockfd, arguments); 
         }
         else if (strcmp(cmd, "dgetfiles") == 0)
         {
-            dgetfiles(client_sockfd, arguments); // Correct
+            dgetfiles(client_sockfd, arguments); 
         }
         else if (strcmp(cmd, "getfiles") == 0)
         {
-            getfiles(client_sockfd, arguments, num_arguments); // Correct
+            getfiles(client_sockfd, arguments, num_arguments); 
         }
         else if (strcmp(cmd, "gettargz") == 0)
         {
-            gettargz(client_sockfd, arguments, num_arguments); // Correct
+            gettargz(client_sockfd, arguments, num_arguments); 
         }
         else if (strcmp(cmd, "quit") == 0)
         {
@@ -727,8 +719,6 @@ void processClient(int client_sockfd)
             write(client_sockfd, response, strlen(response));
             continue; // Continue to next iteration of loop to wait for new command
         }
-        // Send response to client
-        // send(client_sockfd, response, strlen(response), 0);
     }
     exit(0);
 }
@@ -769,6 +759,6 @@ int main(int argc, char *argv[])
         if (!fork()) // Child process
             processClient(csd);
         close(csd);
-        waitpid(0, &status, WNOHANG); // waitpid?
+        waitpid(0, &status, WNOHANG);
     }
 }
