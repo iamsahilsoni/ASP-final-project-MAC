@@ -15,43 +15,10 @@
 #define MAX_ARGUMENTS 10
 #define RESPONSE_TEXT 1
 #define RESPONSE_FILE 2
+#define RESPONSE_QUIT 3
+#define MAX_COMMAND_LENGTH 256
 
 int sock = 0;
-
-int validate_input(char *buffer)
-{
-	// tokenize input
-	char *arguments[MAX_ARGUMENTS];
-	int num_arguments = 0;
-
-	// Parse the input commands
-	char *token = strtok(buffer, " "); // Tokenize command using space as delimiter
-
-	while (token != NULL)
-	{
-		arguments[num_arguments++] = token; // Store the token in the array
-		token = strtok(NULL, " ");			// Get the next token
-	}
-	arguments[num_arguments] = NULL; // Set the last element of the array to NULL
-	char *cmd = arguments[0];
-	// printf("command is %s\n",cmd);
-	char *quittkn = strtok(cmd, " \t\n\r"); // tokenize the input string on whitespace characters
-	if (quittkn != NULL && strcmp(quittkn, "quit") == 0)
-	{
-		// Handle "quit" command
-		return 1;
-	}
-	if (num_arguments < 2)
-	{
-		printf("\nInvalid command, try again\n\n");
-		return 0;
-	}
-	// todo validate input here further
-
-	// return 0 if any error
-
-	return 1;
-}
 
 int connectToServerOrMirror(char *ip, int port)
 {
@@ -94,13 +61,48 @@ void remove_linebreak(char **tokens, int num_tokens)
     }
 }
 
+int validate_command(char *command_name,int num_arguments) {
+
+    // check the command name and number of arguments
+    if (strcmp(command_name, "findfile") == 0) {
+        if (num_arguments != 1) {
+            return 0; // invalid number of arguments for findfile command
+        }
+    } else if (strcmp(command_name, "sgetfiles") == 0) {
+        if (num_arguments < 2 || num_arguments > 3) {
+            return 0; // invalid number of arguments for sgetfiles command
+        }
+    } else if (strcmp(command_name, "dgetfiles") == 0) {
+        if (num_arguments < 2 || num_arguments > 3) {
+            return 0; // invalid number of arguments for dgetfiles command
+        }
+    } else if (strcmp(command_name, "getfiles") == 0) {
+        if (num_arguments < 1 || num_arguments > 7) {
+            return 0; // invalid number of arguments for getfiles command
+        }
+    } else if (strcmp(command_name, "gettargz") == 0) {
+        if (num_arguments < 1 || num_arguments > 7) {
+            return 0; // invalid number of arguments for gettargz command
+        }
+    } else if (strcmp(command_name, "quit") == 0) {
+        if (num_arguments != 0) {
+            return 0; // invalid number of arguments for quit command
+        }
+    } else {
+        return 0; // invalid command name
+    }
+
+    return 1; // command is valid
+}
+
+
 int main(int argc, char *argv[])
 {
 	int valread;
 
 	char buffer[1024] = {0};
 	char response_text[1024];
-	char valbuf[1024];
+	char command[1024];
 	char server_ip[16];
 	char mirror_ip[16];
 
@@ -136,53 +138,81 @@ int main(int argc, char *argv[])
 		memset(buffer, 0, sizeof(buffer));
 		fgets(buffer, 1024, stdin);
 
-		strcpy(valbuf, buffer);
-		// printf("buff is %s",buffer);
+		strcpy(command, buffer);
+
+		char command_name[MAX_COMMAND_LENGTH];
+		char arguments[10][MAX_COMMAND_LENGTH];
+		int num_arguments = 0;
+		int i = 0;
+		int k=0;
+		int len = strlen(command)-1;
+
+		while (i < len && command[i] == ' ') {
+			i++;
+		}
+
+		// extract the command name
+		while (i < len && command[i] != ' ' && command[i] != '\n') {
+			command_name[k] = command[i];
+			i++;
+			k++;
+		}
+		command_name[k] = '\0';
+
+		// skip any extra spaces before the arguments
+		while (i < len && command[i] == ' ') {
+			i++;
+		}
+
+		// extract the arguments
+		while (i < len && num_arguments < 10) {
+			int j = 0;
+			while (i < len && command[i] != ' ') {
+				arguments[num_arguments][j] = command[i];
+				i++;
+				j++;
+			}
+			arguments[num_arguments][j] = '\0';
+			num_arguments++;
+
+			// skip any extra spaces between the arguments
+			while (i < len && command[i] == ' ') {
+				i++;
+			}
+		}
+
+		if (!validate_command(command_name,num_arguments))
+		{
+			printf("Invalid Command Syntax !\n");
+			continue;
+		}
+		char* result = malloc(MAX_ARGUMENTS * 100);
+		memset(result, 0, sizeof(result));
+		// initialize the result string to an empty string
+		result = command_name;
+		strcat(result, " ");
 		
-		// char *arguments[MAX_ARGUMENTS];
-		// memset(arguments, 0, sizeof(arguments));
-        // int num_arguments = 0;
-
-        // // Parse the command received from client
-        // char *token = strtok(valbuf, " "); // Tokenize command using space as delimiter
-
-        // while (token != NULL)
-        // {
-        //     arguments[num_arguments++] = token; // Store the token in the array
-		// 	printf("token is '%s'\n",token);
-        //     token = strtok(NULL, " ");          // Get the next token
-        // }
-        // arguments[num_arguments] = NULL; // Set the last element of the array to NULL
-
-        // // Remove line breaks from tokens
-        // remove_linebreak(arguments, num_arguments);
-
-		// char* result = malloc(MAX_ARGUMENTS * 100);
-		// memset(result, 0, sizeof(result));
-		// // initialize the result string to an empty string
-		// result[0] = '\0';
-		
-		// printf("%d\n",num_arguments);
-		// // concatenate each argument to the result string
-		// for (int i = 0; i < num_arguments ; i++) {
-		// 	strcat(result, arguments[i]);
-		// 	if (i!=num_arguments-1) {
-		// 		strcat(result, " ");
-		// 	}
-		// }
+		// concatenate each argument to the result string
+		for (int i = 0; i < num_arguments ; i++) {
+			strcat(result, arguments[i]);
+			if (i!=num_arguments-1) {
+				strcat(result, " ");
+			}
+		}
 
 		// printf("the filtered command is '%s' with size %lu\n",result,strlen(result));
 
-		if (!validate_input(valbuf))
-			continue;
-
 		// send command to server
-		send(sock, buffer, strlen(buffer), 0);
+		send(sock, result, strlen(result), 0);
 
 		int response_type;
 		read(sock, &response_type, sizeof(response_type));
 
-		if (response_type == RESPONSE_TEXT)
+		if(response_type == RESPONSE_QUIT){
+			printf("\nDisconnected from the server.\n" );
+			exit(0);
+		}
+		else if (response_type == RESPONSE_TEXT)
 		{
 			memset(response_text, 0, sizeof(response_text)); // Clear the response text buffer
 			read(sock, response_text, sizeof(response_text));

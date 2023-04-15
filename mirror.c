@@ -27,6 +27,7 @@
 #define MAX_EXTENSION_COUNT 6
 #define RESPONSE_TEXT 1
 #define RESPONSE_FILE 2
+#define RESPONSE_QUIT 3
 
 int client_count = 0;
 
@@ -715,10 +716,8 @@ void processClient(int client_sockfd)
         else if (strcmp(cmd, "quit") == 0)
         {
             printf("Client requested to quit.\n");
-            snprintf(response, MAX_RESPONSE_SIZE, "Server has closed the connection"); // Generate response for invalid command
-            write(client_sockfd, response, strlen(response));
-            snprintf(response, MAX_RESPONSE_SIZE, "quit"); // Generate response for invalid command
-            write(client_sockfd, response, strlen(response));
+            int response_type = RESPONSE_QUIT;
+            write(client_sockfd, &response_type, sizeof(response_type));
             break; // Exit loop and terminate processclient() function
         }
         else
