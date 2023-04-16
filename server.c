@@ -8,6 +8,9 @@
 // 1. gcc -o server server.c
 // 2. ./server
 
+// Server & Mirror are almost same, 
+// except Server is rejecting the client based on Load (conditions mentioned in Project description).
+
 #include <time.h>
 #include <stdio.h>
 #include <stdlib.h>

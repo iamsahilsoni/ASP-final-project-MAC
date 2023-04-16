@@ -8,6 +8,10 @@
 // 1. gcc -o mirror mirror.c
 // 2. ./mirror
 
+// Mirror & Server are almost same, 
+// except Server is rejecting the client based on Load (conditions mentioned in Project description).
+// To understand the code, read in-line comments in server.c file.
+
 #include <time.h>
 #include <stdio.h>
 #include <stdlib.h>
