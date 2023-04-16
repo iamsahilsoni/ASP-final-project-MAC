@@ -4,11 +4,11 @@
 // April 15th 2023
 
 // Mirror-Side code
-// Usage :- 
+// Usage :-
 // 1. gcc -o mirror mirror.c
 // 2. ./mirror
 
-// Mirror & Server are almost same, 
+// Mirror & Server are almost same,
 // except Server is rejecting the client based on Load (conditions mentioned in Project description).
 // To understand the code, read in-line comments in server.c file.
 
@@ -703,23 +703,23 @@ void processClient(int client_sockfd)
         // Process the command and generate response
         if (strcmp(cmd, "findfile") == 0)
         {
-            findfile(client_sockfd, arguments); 
+            findfile(client_sockfd, arguments);
         }
         else if (strcmp(cmd, "sgetfiles") == 0)
         {
-            sgetfiles(client_sockfd, arguments); 
+            sgetfiles(client_sockfd, arguments);
         }
         else if (strcmp(cmd, "dgetfiles") == 0)
         {
-            dgetfiles(client_sockfd, arguments); 
+            dgetfiles(client_sockfd, arguments);
         }
         else if (strcmp(cmd, "getfiles") == 0)
         {
-            getfiles(client_sockfd, arguments, num_arguments); 
+            getfiles(client_sockfd, arguments, num_arguments);
         }
         else if (strcmp(cmd, "gettargz") == 0)
         {
-            gettargz(client_sockfd, arguments, num_arguments); 
+            gettargz(client_sockfd, arguments, num_arguments);
         }
         else if (strcmp(cmd, "quit") == 0)
         {

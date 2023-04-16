@@ -4,11 +4,11 @@
 // April 15th 2023
 
 // Server-Side code
-// Usage :- 
+// Usage :-
 // 1. gcc -o server server.c
 // 2. ./server
 
-// Server & Mirror are almost same, 
+// Server & Mirror are almost same,
 // except Server is rejecting the client based on Load (conditions mentioned in Project description).
 
 #include <time.h>
@@ -46,24 +46,32 @@ int client_count = 0;
 
 /*-------------------------COMMON----------------------------------*/
 
+// This function takes a file name as input and returns the size of the file in bytes
 long int getFileSize(const char *filename)
 {
     FILE *fp = fopen(filename, "rb"); // open the file in binary mode
+    // Check if the file was opened successfully
     if (fp == NULL)
     {
         perror("Error opening file");
-        return -1; // return -1 to indicate error
+        return -1; // Return -1 to indicate an error
     }
 
-    fseek(fp, 0, SEEK_END);    // move the file pointer to the end of the file
-    long int size = ftell(fp); // get the current position of the file pointer, which is the file size in bytes
-    fclose(fp);
+    fseek(fp, 0, SEEK_END);    // Move the file pointer to the end of the file
+    long int size = ftell(fp); // Get the current position of the file pointer, which is the file size in bytes
+    fclose(fp);                // Close the file
 
-    return size;
+    return size; // Return the file size
 }
 
 /*----------------------------FINDFILE----------------------------*/
 
+/**
+ *This function searches for a file in the home directory and returns the file information if found.
+ *@param client_sockfd the socket file descriptor for the client connection
+ *@param arguments an array of arguments for the function call, where arguments[1] is the filename to search for
+ *@return void
+ */
 void findfile(int client_sockfd, char **arguments)
 {
     char *filename = arguments[1];
@@ -120,40 +128,65 @@ bool check_size(char *path, size_t size1, size_t size2)
     return false;
 }
 
+/**
+ * This function takes a directory path, two size limits, and a file descriptor as input.
+ * It recursively traverses the directory and its subdirectories, printing the path of each file whose size is within the given limits.
+ * The path of each file is written to the file descriptor in the format "path\n".
+ *
+ * @param dirpath The directory path to traverse.
+ * @param size1 The lower size limit (in bytes) of files to include.
+ * @param size2 The upper size limit (in bytes) of files to include.
+ * @param tmp_fd The file descriptor to write the file paths to.
+ * @return void.
+ */
 void traverse_directory(char *dirpath, size_t size1, size_t size2, int tmp_fd)
 {
-    DIR *dir = opendir(dirpath);
-    if (dir == NULL)
+    DIR *dir = opendir(dirpath); // open the directory specified by `dirpath`
+    if (dir == NULL)             // check if the directory is opened successfully
     {
         perror("Error opening directory");
         return;
     }
     struct dirent *ent;
-    while ((ent = readdir(dir)) != NULL)
+    while ((ent = readdir(dir)) != NULL) // read each directory entry in the directory
     {
-        char path[MAX_RESPONSE_SIZE];
-        sprintf(path, "%s/%s", dirpath, ent->d_name);
-        if (check_size(path, size1, size2))
+        char path[MAX_RESPONSE_SIZE];                 // buffer to store the path of the file or directory
+        sprintf(path, "%s/%s", dirpath, ent->d_name); // construct the path of the file or directory by concatenating `dirpath` and `ent->d_name`
+        if (check_size(path, size1, size2))           // check if the file size is between `size1` and `size2` (inclusive)
         {
-            write(tmp_fd, path, strlen(path));
-            write(tmp_fd, "\n", 1);
+            write(tmp_fd, path, strlen(path)); // write the path of the file to the file descriptor `tmp_fd`
+            write(tmp_fd, "\n", 1);            // write a newline character to the file descriptor `tmp_fd`
         }
-        if (ent->d_type == DT_DIR && strcmp(ent->d_name, ".") != 0 && strcmp(ent->d_name, "..") != 0)
+        if (ent->d_type == DT_DIR && strcmp(ent->d_name, ".") != 0 && strcmp(ent->d_name, "..") != 0) // check if the directory entry is a directory and not `.` or `..`
         {
-            traverse_directory(path, size1, size2, tmp_fd);
+            traverse_directory(path, size1, size2, tmp_fd); // recursively traverse the subdirectory
         }
     }
-    closedir(dir);
+    closedir(dir); // close the directory
 }
 
+/**
+ * sgetfiles - creates a tar file of all files in user's home directory
+ *             with a size greater than or equal to size1 and less than
+ *             or equal to size2, and sends the tar file to the client
+ *
+ * @param client_sockfd: file descriptor of the client socket
+ * @param arguments: an array of arguments containing the size1 and size2 values
+ */
 void sgetfiles(int client_sockfd, char **arguments)
 {
+    // Get the user's home directory and the name of the temporary tar file
     char *dirname = getenv("HOME");
     char *filename = "temp.tar.gz";
+
+    // Convert the size arguments to integers
     size_t size1 = atoi(arguments[1]);
     size_t size2 = atoi(arguments[2]);
 
+    // Initialize a buffer to store file data
     char buf[MAX_RESPONSE_SIZE];
+
+    // Initialize a pipe and a process ID
     int fd[2], nbytes;
     pid_t pid;
 
@@ -166,7 +199,7 @@ void sgetfiles(int client_sockfd, char **arguments)
         return;
     }
 
-    // Traverse the directory tree and write the filenames
+    // Traverse the directory tree and write the filenames to the temporary file
     traverse_directory(dirname, size1, size2, tmp_fd);
 
     // Fork a child process to handle the tar and zip operation
@@ -183,7 +216,7 @@ void sgetfiles(int client_sockfd, char **arguments)
     }
     else if (pid == 0)
     {
-        // Child process
+        // Child process - execute tar command
         close(fd[0]);
         dup2(fd[1], STDOUT_FILENO);
         close(fd[1]);
@@ -193,14 +226,18 @@ void sgetfiles(int client_sockfd, char **arguments)
     }
     else
     {
-        // Parent process
+        // Parent process - send the tar file to the client
         close(fd[1]);
-        // Send file response
+
+        // Send the file response header
         int response_type = 2;
         write(client_sockfd, &response_type, sizeof(response_type));
 
+        // Wait for the child process to complete
         wait(NULL);
         fflush(stdout);
+
+        // Get the size of the tar file
         long int filesize = getFileSize("temp.tar.gz");
         write(client_sockfd, &filesize, sizeof(filesize));
 
@@ -270,6 +307,9 @@ void traverse_directory_for_date(char *dirpath, time_t time1, time_t time2, int 
     }
     closedir(dir);
 }
+
+// The functions sgetfiles and dgetfiles have a high degree of similarity to each other.
+// While sgetfiles selects files based on their sizes, dgetfiles selects files based on their dates.
 
 void dgetfiles(int client_sockfd, char **arguments)
 {
@@ -376,8 +416,17 @@ void dgetfiles(int client_sockfd, char **arguments)
 
 /*-------------------------GETFILES-------------------------*/
 
+/**
+ * Traverses a directory tree and writes the paths of files that match any of the specified filenames to a temporary file.
+ *
+ * @param dirpath The path of the directory to traverse.
+ * @param filenames An array of strings containing the filenames to match.
+ * @param num_files The number of filenames in the array.
+ * @param tmp_fd The file descriptor for the temporary file.
+ */
 void traverse_directory_for_getfiles(char *dirpath, char **filenames, int num_files, int tmp_fd)
 {
+    // Open the directory with the given path
     DIR *dir = opendir(dirpath);
     if (dir == NULL)
     {
@@ -387,6 +436,7 @@ void traverse_directory_for_getfiles(char *dirpath, char **filenames, int num_fi
     struct dirent *ent;
     while ((ent = readdir(dir)) != NULL)
     {
+        // Create the full path of the current file
         char path[MAX_RESPONSE_SIZE];
         sprintf(path, "%s/%s", dirpath, ent->d_name);
 
@@ -395,20 +445,31 @@ void traverse_directory_for_getfiles(char *dirpath, char **filenames, int num_fi
         {
             if (strcmp(ent->d_name, filenames[i]) == 0)
             {
+                // Write the path of the matching file to the temporary file descriptor
                 write(tmp_fd, path, strlen(path));
                 write(tmp_fd, "\n", 1);
                 break;
             }
         }
 
+        // Recursively traverse any subdirectories
         if (ent->d_type == DT_DIR && strcmp(ent->d_name, ".") != 0 && strcmp(ent->d_name, "..") != 0)
         {
             traverse_directory_for_getfiles(path, filenames, num_files, tmp_fd);
         }
     }
+    // Close the directory
     closedir(dir);
 }
 
+/**
+ * @brief Retrieves files from the user's home directory that match the specified filenames,
+ *        creates a tar.gz archive of those files and sends it to the client.
+ *
+ * @param client_sockfd The socket file descriptor for the connected client
+ * @param arguments An array of strings containing the filenames to search for
+ * @param argLen The length of the arguments array
+ */
 void getfiles(int client_sockfd, char **arguments, int argLen)
 {
     char *dirname = getenv("HOME");
@@ -427,6 +488,7 @@ void getfiles(int client_sockfd, char **arguments, int argLen)
         return;
     }
 
+    // Traverse the specified directory and its subdirectories to find the requested files
     traverse_directory_for_getfiles(dirname, arguments + 1, argLen - 1, tmp_fd);
 
     // Check if any files were found
@@ -457,8 +519,10 @@ void getfiles(int client_sockfd, char **arguments, int argLen)
     {
         // Child process
         close(fd[0]);
+        // Redirect standard output to the write end of the pipe
         dup2(fd[1], STDOUT_FILENO);
         close(fd[1]);
+        // Execute the tar command to compress the files into a single archive
         execlp("tar", "tar", "-czf", filename, "-T", tmp_file, NULL);
         perror("Error executing tar command");
         exit(EXIT_FAILURE);
@@ -473,6 +537,7 @@ void getfiles(int client_sockfd, char **arguments, int argLen)
 
         wait(NULL);
         fflush(stdout);
+        // Get the size of the tar file
         long int filesize = getFileSize("temp.tar.gz");
         write(client_sockfd, &filesize, sizeof(filesize));
 
@@ -488,6 +553,7 @@ void getfiles(int client_sockfd, char **arguments, int argLen)
         }
         ssize_t bytes_read, bytes_sent;
         off_t bytes_remaining = filesize;
+        // Send the tar file to the client in chunks
         while (bytes_remaining > 0 && (bytes_read = read(tar_fd, buf, sizeof(buf))) > 0)
         {
             bytes_sent = send(client_sockfd, buf, bytes_read, 0);
@@ -544,6 +610,9 @@ void traverse_directory_for_gettargz(char *dirpath, char **extensions, int num_e
     }
     closedir(dir);
 }
+
+// The functions getfiles and gettargz have a high degree of similarity to each other.
+// While getfiles selects files based on entered names, dgetfiles selects files based on entered extensions.
 
 void gettargz(int client_sockfd, char **arguments, int argLen)
 {
@@ -643,19 +712,34 @@ void gettargz(int client_sockfd, char **arguments, int argLen)
 
 /*---------------------PROCESSCLIENT-----------------------*/
 
+/**
+ * Removes line breaks from each token in the given array of strings.
+ *
+ * @param tokens      array of strings
+ * @param num_tokens  number of strings in the array
+ */
 void remove_linebreak(char **tokens, int num_tokens)
 {
     for (int i = 0; i < num_tokens; i++)
     {
         char *token = tokens[i];
-        int length = strcspn(token, "\n");
-        char *new_token = (char *)malloc(length + 1);
-        strncpy(new_token, token, length);
-        new_token[length] = '\0';
-        tokens[i] = new_token;
+        int length = strcspn(token, "\n");            // get length of token up to the line break
+        char *new_token = (char *)malloc(length + 1); // allocate memory for new token
+        strncpy(new_token, token, length);            // copy characters up to line break from original token to new token
+        new_token[length] = '\0';                     // add null terminator to new token
+        tokens[i] = new_token;                        // replace original token with new token
     }
 }
 
+/**
+ *   The function receives a socket descriptor and reads the command sent by the client
+ *   It then tokenizes the command into arguments, removes line breaks from the arguments
+ *   and processes the command by calling corresponding functions. If the command is invalid,
+ *   it generates an error response and waits for a new command. The function runs indefinitely
+ *   until the client disconnects or sends a "quit" command.
+ *   @param client_sockfd A socket descriptor for the client connection
+ *   @return void
+ */
 void processClient(int client_sockfd)
 {
     char command[255];
@@ -667,17 +751,17 @@ void processClient(int client_sockfd)
     {
         memset(command, 0, sizeof(command));
         n = read(client_sockfd, command, 255);
-
+        // Check if client has disconnected
         if (n <= 0)
         {
             printf("Client disconnected.\n");
             break; // Exit loop and terminate processclient() function
         }
 
-        char *arguments[MAX_ARGUMENTS];
-        int num_arguments = 0;
+        char *arguments[MAX_ARGUMENTS]; // Array to store command arguments
+        int num_arguments = 0;          // Counter for number of arguments
 
-        // Parse the command received from client
+        // Tokenize the command into arguments
         char *token = strtok(command, " "); // Tokenize command using space as delimiter
 
         while (token != NULL)
@@ -702,19 +786,19 @@ void processClient(int client_sockfd)
         // Process the command and generate response
         if (strcmp(cmd, "findfile") == 0)
         {
-            findfile(client_sockfd, arguments); 
+            findfile(client_sockfd, arguments);
         }
         else if (strcmp(cmd, "sgetfiles") == 0)
         {
-            sgetfiles(client_sockfd, arguments); 
+            sgetfiles(client_sockfd, arguments);
         }
         else if (strcmp(cmd, "dgetfiles") == 0)
         {
-            dgetfiles(client_sockfd, arguments); 
+            dgetfiles(client_sockfd, arguments);
         }
         else if (strcmp(cmd, "getfiles") == 0)
         {
-            getfiles(client_sockfd, arguments, num_arguments); 
+            getfiles(client_sockfd, arguments, num_arguments);
         }
         else if (strcmp(cmd, "gettargz") == 0)
         {
@@ -739,12 +823,15 @@ void processClient(int client_sockfd)
 
 /*-------------MAIN----------------------*/
 
+// Standard main function with arguments count and argument vector
+
 int main(int argc, char *argv[])
 {
     int sd, csd, portNumber, status;
     socklen_t len;
     struct sockaddr_in servAdd; // ipv4
 
+    // Create a socket with domain: Internet, type: Stream and protocol: TCP
     if ((sd = socket(AF_INET, SOCK_STREAM, 0)) < 0)
     {
         printf("Cannot create socket\n");
@@ -757,22 +844,25 @@ int main(int argc, char *argv[])
     // The htonl function takes a 32-bit number in host byte order and returns a 32-bit number in the network byte order used in TCP/IP networks
     servAdd.sin_addr.s_addr = htonl(INADDR_ANY); // Host to network long
 
-    // htonos: Host to network short-byte order
+    // htons: Host to network short-byte order
     servAdd.sin_port = htons(PORT);
 
-    // struct sockaddr is the generic structure to store socket addresses
-    // The procedure it to typecast the specific socket addreses of type sockaddr_in, sockaddr_in6, sockaddr_un into sockaddr
-
+    // Bind the socket to the address and port
     bind(sd, (struct sockaddr *)&servAdd, sizeof(servAdd));
+
+    // Listen for incoming connections on the bound socket with maximum number of clients allowed to connect
     listen(sd, 5);
 
     printf("Server started, waiting for client... !\n");
 
+    // Wait for clients to connect
     while (1)
     {
+        // Accept a client connection, and get a new socket descriptor (csd) to communicate with the client
         csd = accept(sd, (struct sockaddr *)NULL, NULL);
         client_count++;
         printf("Client Count: %d\n", client_count);
+
         int willAccept = 0;
         if (client_count <= 4)
         {
@@ -793,20 +883,34 @@ int main(int argc, char *argv[])
                 willAccept = 0;
             }
         }
+
+        // If there is space for the client to connect
         if (willAccept)
         {
             printf("Got a client\n");
+
+            // Send a message to the client to indicate that it can connect
             int response_type = 1;
             write(csd, &response_type, sizeof(response_type));
+
+            // Create a new process to handle the client communication
             if (!fork()) // Child process
                 processClient(csd);
+
+            // Close the socket descriptor
             close(csd);
+
+            // Wait for any child processes to finish
             waitpid(0, &status, WNOHANG);
         }
+        // If there is no space for the client to connect
         else
         {
+            // Send a message to the client to indicate that it cannot connect
             int response_type = 0;
             write(csd, &response_type, sizeof(response_type));
+
+            // Close the socket descriptor
             close(csd);
         }
     }
