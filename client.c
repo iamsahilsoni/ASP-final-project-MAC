@@ -30,6 +30,7 @@
 #define RESPONSE_FILE 2
 #define RESPONSE_QUIT 3
 #define MAX_COMMAND_LENGTH 256
+#define BUFFER_SIZE 1024
 
 int sock = 0;
 
@@ -42,12 +43,10 @@ int sock = 0;
 int unzip_tar()
 {
 	int ret;
-	// uncompress the tar.gz archive
-	ret = system("gzip -d received.tar.gz");
-
-	// extract the files from the uncompressed tar archive
-	ret = system("tar xf received.tar");
-
+	char *filename = "received.tar.gz";
+	char cmd[1024];
+	snprintf(cmd, 1024, "tar -xzf %s", filename);
+	ret = system(cmd);
 	if (ret != 0)
 	{
 		// print an error message if the extraction failed
@@ -426,12 +425,16 @@ int main(int argc, char *argv[])
 					filesize -= bytes_read;
 				}
 				printf("Tar File received successfully.\n");
+				// close the file before unzip
+				fclose(fp);
+
 				if (bytes_read < 0)
 				{
 					// error receiving the file data
 					printf("Error: Failed to receive file.\n");
 				}
-				else if (unZip)
+
+				if (unZip)
 				{
 					// if the `unZip` flag is set, attempt to unzip the received tar file
 					if (unzip_tar() != 0)
@@ -443,7 +446,6 @@ int main(int argc, char *argv[])
 						printf("Received Tar file unzipped successfully!\n");
 					}
 				}
-				fclose(fp); // close the file
 			}
 		}
 	}
