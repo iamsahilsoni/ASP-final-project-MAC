@@ -19,8 +19,6 @@
 #include <sys/types.h>
 #include <sys/signal.h>
 #include <sys/wait.h>
-#include <zlib.h>
-#include <libtar.h> //sudo apt-get install libtar-dev
 #include <fcntl.h>
 
 #define SERVER_PORT 8080
